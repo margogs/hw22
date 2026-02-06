@@ -1,5 +1,5 @@
 // app.js - Add this line at the VERY TOP (line 1)
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEyDscrw71v-mLdOML0ElzpDhWcRdSD-pvmML_Kz2aCmhk95hZDgwnVVSEAfEgjGSo/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzM34TqLXDL4vBm1n2Z6L133e6AlFHozdFUQ4QFGNhT_DtZvKo33RP8na1ZYyfVd6ZH/exec';
 
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6/dist/transformers.min.js";
 
