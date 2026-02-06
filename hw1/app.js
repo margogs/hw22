@@ -1,6 +1,6 @@
 // app.js (ES module version using transformers.js for local sentiment classification)
 // ADD THIS CONSTANT AT THE TOP OF THE FILE - REPLACE WITH YOUR DEPLOYED APP SCRIPT URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-cDUk0UGL7qisATmQp9Adl9UupCmKNc7OLG1cJbfGHaQPv-GwaRrl5nNMuIEncmQw6Q/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqqmgGOjQtIY5_scQwOETG0z4_vsk4VUxxvrEmXbnF9NXkgSR_1GUiAfPQ4oahhg/exec';
 
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6/dist/transformers.min.js";
 
