@@ -1,6 +1,5 @@
-// app.js (ES module version using transformers.js for local sentiment classification)
-// ADD THIS CONSTANT AT THE TOP OF THE FILE - REPLACE WITH YOUR DEPLOYED APP SCRIPT URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqqmgGOjQtIY5_scQwOETG0z4_vsk4VUxxvrEmXbnF9NXkgSR_1GUiAfPQ4oahhg/exec';
+// app.js - Add this line at the VERY TOP (line 1)
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEyDscrw71v-mLdOML0ElzpDhWcRdSD-pvmML_Kz2aCmhk95hZDgwnVVSEAfEgjGSo/exec';
 
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6/dist/transformers.min.js";
 
@@ -14,7 +13,6 @@ const reviewText = document.getElementById("review-text");
 const sentimentResult = document.getElementById("sentiment-result");
 const loadingElement = document.querySelector(".loading");
 const errorElement = document.getElementById("error-message");
-const apiTokenInput = document.getElementById("api-token");
 
 // Initialize the app
 document.addEventListener("DOMContentLoaded", function () {
@@ -30,9 +28,9 @@ async function initSentimentModel() {
       "text-classification",
       "Xenova/distilbert-base-uncased-finetuned-sst-2-english"
     );
-    console.log("Sentiment model loaded");
+    console.log("✅ Sentiment model loaded successfully");
   } catch (error) {
-    console.error("Failed to load sentiment model:", error);
+    console.error("❌ Failed to load sentiment model:", error);
     showError("Failed to load sentiment model. Please refresh the page.");
   }
 }
@@ -40,7 +38,10 @@ async function initSentimentModel() {
 // Load reviews from TSV
 function loadReviews() {
   fetch("reviews_test.tsv")
-    .then((response) => response.text())
+    .then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.text();
+    })
     .then((tsvData) => {
       Papa.parse(tsvData, {
         header: true,
@@ -49,18 +50,23 @@ function loadReviews() {
           reviews = results.data
             .map((row) => row.text)
             .filter((text) => typeof text === "string" && text.trim() !== "");
+          console.log(`📊 Loaded ${reviews.length} reviews`);
+        },
+        error: (error) => {
+          console.error("❌ TSV parse error:", error);
         }
       });
     })
     .catch((error) => {
-      console.error("TSV load error:", error);
+      console.error("❌ Failed to load TSV:", error);
     });
 }
 
-// Analyze a random review
+// Main function: Analyze random review
 async function analyzeRandomReview() {
   hideError();
 
+  // Validation
   if (!reviews.length) {
     showError("No reviews available. Please try again later.");
     return;
@@ -71,52 +77,97 @@ async function analyzeRandomReview() {
     return;
   }
 
+  // Select random review
   const selectedReview = reviews[Math.floor(Math.random() * reviews.length)];
   reviewText.textContent = selectedReview;
 
+  // Show loading state
   loadingElement.style.display = "block";
   analyzeBtn.disabled = true;
   sentimentResult.innerHTML = "";
   sentimentResult.className = "sentiment-result";
 
   try {
+    // 1. Analyze sentiment
     const result = await analyzeSentiment(selectedReview);
     const { sentiment, label, score } = displaySentiment(result);
     
-    // Log to Google Sheets
+    // 2. Log to Google Sheets with EXACT column format
     await logToGoogleSheets(selectedReview, sentiment, label, score);
     
+    console.log("✅ Analysis complete and logged to Google Sheets");
+    
   } catch (error) {
-    console.error("Error:", error);
+    console.error("❌ Error:", error);
     showError(error.message || "Failed to analyze sentiment.");
   } finally {
+    // Reset UI
     loadingElement.style.display = "none";
     analyzeBtn.disabled = false;
   }
 }
 
-// NEW FUNCTION: Log data to Google Sheets
+// NEW FUNCTION: Log data to Google Sheets with your exact column requirements
 async function logToGoogleSheets(review, sentiment, label, score) {
   try {
+    // Prepare data matching your column requirements:
+    // 1. Timestamp (ts_iso)
+    // 2. Review
+    // 3. Sentiment (with confidence)
+    // 4. Meta (all client information)
+    
     const logData = {
-      timestamp: new Date().toISOString(),
-      review: review,
+      timestamp: new Date().toISOString(), // Column 1: Timestamp (ts_iso)
+      review: review, // Column 2: Review
       sentiment: {
         label: label,
         category: sentiment,
         confidence: score
       },
-      confidence: (score * 100).toFixed(1),
-      meta: {
+      confidence: (score * 100).toFixed(1), // For the Sentiment column display
+      meta: { // Column 4: Meta - ALL client information
+        // Browser information
         userAgent: navigator.userAgent,
         language: navigator.language,
+        languages: navigator.languages,
+        
+        // Device information
+        platform: navigator.platform,
+        hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+        
+        // Screen information
+        screenResolution: `${window.screen.width}x${window.screen.height}`,
+        screenColorDepth: window.screen.colorDepth,
+        screenPixelDepth: window.screen.pixelDepth,
+        
+        // Time information
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        timestamp_client: Date.now(),
-        model: "distilbert-base-uncased-finetuned-sst-2-english"
+        clientTimestamp: Date.now(),
+        clientDate: new Date().toString(),
+        
+        // Connection information
+        onlineStatus: navigator.onLine,
+        connectionType: navigator.connection ? navigator.connection.effectiveType : 'unknown',
+        
+        // App information
+        appVersion: '1.0',
+        modelUsed: 'distilbert-base-uncased-finetuned-sst-2-english',
+        
+        // URL information
+        url: window.location.href,
+        referrer: document.referrer,
+        
+        // Performance information
+        memory: navigator.deviceMemory || 'unknown',
+        
+        // Cookies enabled
+        cookiesEnabled: navigator.cookieEnabled
       }
     };
 
-    // Send data to Google Apps Script
+    console.log('📤 Sending to Google Sheets:', logData);
+
+    // Send to Google Apps Script
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       headers: {
@@ -125,17 +176,19 @@ async function logToGoogleSheets(review, sentiment, label, score) {
       body: JSON.stringify(logData)
     });
 
-    // Check if logging was successful
     if (response.ok) {
       const result = await response.json();
-      console.log('Data logged to Google Sheets:', result);
+      console.log('✅ Logged to Google Sheets:', result);
+      return result;
     } else {
-      console.warn('Failed to log to Google Sheets:', response.status);
+      const errorText = await response.text();
+      console.warn('⚠️ Failed to log to Google Sheets:', response.status, errorText);
+      // Don't throw error - logging is secondary functionality
     }
     
   } catch (error) {
-    console.warn('Failed to log to Google Sheets (network error):', error);
-    // Silently fail - logging is secondary functionality
+    console.warn('⚠️ Network error when logging to Google Sheets:', error);
+    // Silently fail - don't interrupt user experience
   }
 }
 
@@ -163,11 +216,10 @@ function displaySentiment(result) {
       sentiment = "positive";
     } else if (label === "NEGATIVE" && score > 0.5) {
       sentiment = "negative";
-    } else {
-      sentiment = "neutral";
     }
   }
 
+  // Update UI
   sentimentResult.classList.add(sentiment);
   sentimentResult.innerHTML = `
     <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
@@ -177,7 +229,7 @@ function displaySentiment(result) {
   return { sentiment, label, score };
 }
 
-// Get appropriate icon for sentiment
+// Get sentiment icon
 function getSentimentIcon(sentiment) {
   switch (sentiment) {
     case "positive": return "fa-thumbs-up";
